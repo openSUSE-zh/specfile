@@ -1,8 +1,8 @@
 package specfile
 
 import (
-	"fmt"
 	"io"
+	"strings"
 )
 
 // Parser the specfile parser
@@ -21,15 +21,28 @@ func NewParser(rd io.ReaderAt) (Parser, error) {
 }
 
 // Parse actually parse the tokens to spec
-func (f *Parser) Parse() {
+func (f *Parser) Parse() error {
 	var last Tokenizer
+	systemMacros := initSystemMacros()
 	for _, token := range f.tokens {
 		switch token.Type {
 		case "Conditional":
-		case "Tag", "Macro", "Section":
+		case "Macro":
+			var macro Macro
+			macro.Raw = &token
+			err := (&macro).Parse(token.Content)
+			if err != nil {
+				return err
+			}
+			if strings.Contains(macro.Value, "%") {
+				macro.Value = expandMacro(macro.Value, systemMacros, f.spec.Macros)
+			}
+			tmp := f.spec.Macros
+			tmp = append(tmp, macro)
+			f.spec.Macros = tmp
+		case "Tag", "Section":
 			var item Item
-			typ := (&item).Parse(&token)
-			fmt.Println(typ)
+			(&item).Parse(&token)
 			if last.Type == "Comment" {
 				item.Comment = last.Content
 			}
@@ -37,4 +50,5 @@ func (f *Parser) Parse() {
 		}
 		last = token
 	}
+	return nil
 }

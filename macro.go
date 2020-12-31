@@ -23,9 +23,7 @@ type Macros []Macro
 // Find find a specific macro through macros
 func (macros Macros) Find(m Macro) int {
 	for i, v := range macros {
-		if v.Indicator == m.Indicator &&
-			v.Type == m.Type &&
-			v.Name == m.Name &&
+		if v.Name == m.Name &&
 			v.Conditional == m.Conditional {
 			return i
 		}
@@ -104,8 +102,8 @@ func (m *Macro) Update(val string) {
 	m.Value = val
 }
 
-// InitSystemMacros load system defined rpm macros
-func InitSystemMacros() Macros {
+// initSystemMacros load system defined rpm macros
+func initSystemMacros() Macros {
 	var macros Macros
 	var files []string
 	for _, v := range macroDirs {
@@ -200,4 +198,42 @@ func parseBuildConfig(f io.ReaderAt) (Macros, error) {
 		return nil, line.Offset
 	}, "Parentheses")
 	return macros, err
+}
+
+func expandMacro(str string, system, local Macros) string {
+	if !strings.Contains(str, "%") {
+		return str
+	}
+	slice.Concat(&local, system)
+
+	bytes := []byte(str)
+	fmt.Println(str)
+	var records []string
+	var tmp []byte
+	start := false
+
+	for _, v := range bytes {
+		if v == '%' {
+			start = true
+		}
+		if v == ' ' || v == '\t' {
+			if start {
+				records = append(records, string(tmp))
+				tmp = []byte{}
+			}
+			start = false
+		}
+		if start {
+			tmp = append(tmp, v)
+		}
+	}
+
+	for _, v := range records {
+		if i := local.Find(Macro{"", "", v, "", "", nil}); i >= 0 {
+			str = strings.Replace(str, v, local[i].Value, 1)
+		}
+	}
+	fmt.Println(str)
+
+	return str
 }

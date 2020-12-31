@@ -1,7 +1,6 @@
 package specfile
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -62,15 +61,14 @@ func (i *Item) Parse(token *Tokenizer) (typ string) {
 		strs := strings.Split(first, " ")
 		i.Name = strs[0]
 		if len(strs) > 1 {
-		  if strs[1] == "-n" {
-			typ = strs[2]
-			tmp = strings.Join(strs[3:], " ")
-		  } else {
-			typ = strs[1]
-		  }
-	        }
+			if strs[1] == "-n" {
+				typ = strs[2]
+				tmp = strings.Join(strs[3:], " ")
+			} else {
+				typ = strs[1]
+			}
+		}
 		i.Value = tmp + left
-		fmt.Println(i)
 	default: //Tag
 		m := tagRegex.FindStringSubmatch(token.Content)
 		i.Name = m[1]

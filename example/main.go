@@ -1,11 +1,13 @@
 package main
 
 import (
+	"os"
+
 	"github.com/openSUSE-zh/specfile"
 )
 
 func main() {
-	/*f, err := os.Open(os.Args[1])
+	f, err := os.Open(os.Args[1])
 	defer f.Close()
 	if err != nil {
 		panic(err)
@@ -15,6 +17,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	parser.Parse()*/
-	specfile.InitSystemMacros()
+	parser.Parse()
 }
