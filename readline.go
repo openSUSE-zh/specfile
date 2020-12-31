@@ -43,6 +43,7 @@ func walkFile(reader io.ReaderAt, brk bool, fn func(rd io.ReaderAt, line *Line) 
 	for {
 		line := NewLine(offset)
 		err1 := readLine(reader, &line, &c, readLineOptions...)
+		// don't break EOF because we need to handle the read line first
 		if err1 != nil && err1 != io.EOF {
 			err = err1
 			break
@@ -62,7 +63,7 @@ func walkFile(reader io.ReaderAt, brk bool, fn func(rd io.ReaderAt, line *Line) 
 				continue
 			}
 		}
-
+		// break the EOF here
 		if err1 == io.EOF {
 			break
 		}
