@@ -20,29 +20,29 @@ func RandStringBytes(n int) string {
 }
 
 func TestReadFull(t *testing.T) {
-	str := RandStringBytes(80)
+	str := RandStringBytes(255)
 	var line Line
 	b, err := read(strings.NewReader(str), &line)
-	if !reflect.DeepEqual(b, []byte(str)) || err != nil || line.Offset != 80 {
+	if !reflect.DeepEqual(b, []byte(str)) || err != nil || line.Offset != 255 {
 		t.Error("[readline]read full buf test failed")
 	}
 }
 
 func TestReadPartial(t *testing.T) {
-	str := RandStringBytes(70)
+	str := RandStringBytes(100)
 	var line Line
 	b, err := read(strings.NewReader(str), &line)
-	if !reflect.DeepEqual(b, []byte(str)) || err != io.EOF || line.Offset != 70 {
+	if !reflect.DeepEqual(b, []byte(str)) || err != io.EOF || line.Offset != 100 {
 		t.Error("[readline]read partial buf test failed")
 	}
 }
 
 func TestReadFullWithBreak(t *testing.T) {
-	str := RandStringBytes(79)
+	str := RandStringBytes(254)
 	str += "\n"
 	var line Line
 	b, err := read(strings.NewReader(str), &line)
-	if !reflect.DeepEqual(b, []byte(str)) || err != nil || line.Offset != 80 {
+	if !reflect.DeepEqual(b, []byte(str)) || err != nil || line.Offset != 255 {
 		t.Error("[readline]read full buf test failed")
 	}
 }

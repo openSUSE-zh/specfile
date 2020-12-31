@@ -108,7 +108,9 @@ func readLine(reader io.ReaderAt, line *Line, c *Counter, options ...string) err
 // read a valid line from io.ReaderAt
 func read(reader io.ReaderAt, line *Line) (bytes []byte, err error) {
 	for {
-		buf := make([]byte, 80)
+		// sometimes the next-line concat symbol "\" doesn't follow immediately and is very very far away,
+		// I think a 255 buf is enough to reach it
+		buf := make([]byte, 255)
 		n, err1 := reader.ReadAt(buf, line.Offset)
 
 		// save every byte we read
@@ -128,7 +130,7 @@ func read(reader io.ReaderAt, line *Line) (bytes []byte, err error) {
 		line.Offset += int64(n)
 
 		// when n == len(buf), the err can be EOF or nil
-		if n == 80 && err1 == nil {
+		if n == 255 && err1 == nil {
 			break
 		}
 
