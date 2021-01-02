@@ -37,17 +37,17 @@ func (f *Parser) Parse() error {
 			if err != nil {
 				return err
 			}
-			if strings.Contains(macro.Value, "%") && macro.Type != "function" {
-				macro.Value = expandMacro(macro.Value, systemMacros, f.Spec.Macros)
+			if strings.Contains(macro.Value, "%") {
+				macro.Value = expandMacro(macro, systemMacros, f.Spec.Macros, f.Spec.Tags)
 			}
 			f.Spec.append("Macros", macro)
 		case "Dependency":
-			var item item
+			var i Dependency
 			if last.Type == "Comment" {
-				item.Comment = last.Content
+				i.Comment = last.Content
 			}
-			(&item).Parse(&token)
-			f.Spec.append("Dependencies", item)
+			(&i).Parse(&token)
+			f.Spec.append("Dependencies", i)
 		case "Section":
 			var section Section
 			if last.Type == "Comment" {
@@ -56,12 +56,12 @@ func (f *Parser) Parse() error {
 			(&section).Parse(&token)
 			f.Spec.append("Sections", section)
 		case "Tag":
-			var item item
+			var i Tag
 			if last.Type == "Comment" {
-				item.Comment = last.Content
+				i.Comment = last.Content
 			}
-			(&item).Parse(&token)
-			f.Spec.append("Tags", item)
+			(&i).Parse(&token)
+			f.Spec.append("Tags", i)
 		}
 		last = token
 	}

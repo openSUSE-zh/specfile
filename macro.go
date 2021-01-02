@@ -92,6 +92,7 @@ func (m *Macro) Parse(str string) error {
 	str = strings.Replace(str, tmp1, "", 1)
 	str = strings.TrimLeft(str, "\\")
 	m.Value = strings.TrimSpace(str)
+	m.Name = strings.Replace(m.Name, "%", "", 1)
 	return nil
 }
 
@@ -198,15 +199,16 @@ func parseBuildConfig(f io.ReaderAt) (Macros, error) {
 	return macros, err
 }
 
-func expandMacro(str string, system, local Macros) string {
+func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 	// no macro at all
+	str := macro.Value
 	if !strings.Contains(str, "%") {
 		return str
 	}
 
 	// expand the escape first
-	str = strings.Replace(str, "%%", "%", -1)
 	fmt.Println(str)
+	str = strings.Replace(str, "%%", "%", -1)
 
 	var records []string
 	var tmp []rune
@@ -234,7 +236,8 @@ func expandMacro(str string, system, local Macros) string {
 			}
 			// eg '%ix86 x86_64 %arm' stop at whitespace or end of str
 			if !useCounter && (unicode.IsSpace(v) || i == len([]rune(str))-1) {
-				records = append(records, string(tmp))
+				// the space was appended to tmp
+				records = append(records, strings.TrimSpace(string(tmp)))
 				tmp = []rune{}
 				start = false
 			}
@@ -252,11 +255,77 @@ func expandMacro(str string, system, local Macros) string {
 	}
 
 	for _, v := range records {
-		fmt.Println(v)
-		if i := local.Find(Macro{"", "", item{v, "", "", "", nil}}); i >= 0 {
-			str = strings.Replace(str, v, local[i].Value, 1)
+		str = strings.Replace(str, v, replaceMacroWithValue(v, system, local, tags), 1)
+	}
+
+	fmt.Println(str)
+
+	return str
+}
+
+func removeSurroundings(str string) string {
+	var tmp []rune
+	for i, v := range str {
+		if i == 0 && v == '%' {
+			continue
+		}
+		if i == 1 && (v == '{' || v == '(') {
+			continue
+		}
+		if i == len([]rune(str))-1 && (v == '}' || v == ')') {
+			break
+		}
+		tmp = append(tmp, v)
+	}
+	return string(tmp)
+}
+
+func replaceMacroWithValue(str string, system, local Macros, tags []Tag) string {
+	str = removeSurroundings(str)
+	var has, hasnot bool
+	var dft string
+
+	// do the ?! and ? judge
+	if strings.HasPrefix(str, "?!") {
+		hasnot = true
+		str = strings.TrimPrefix(str, "?!")
+	}
+	if strings.HasPrefix(str, "?") {
+		has = true
+		str = strings.TrimPrefix(str, "?")
+	}
+
+	if has || hasnot {
+		arr := strings.Split(str, ":")
+		if arr[0] != str {
+			str = arr[0]
+			dft = arr[1]
 		}
 	}
 
-	return str
+	if i := local.Find(Macro{"", "", item{str, "", "", "", nil}}); i >= 0 {
+		if hasnot {
+			return ""
+		}
+		return local[i].Value
+	}
+	if i := system.Find(Macro{"", "", item{str, "", "", "", nil}}); i >= 0 {
+		if hasnot {
+			return ""
+		}
+		return system[i].Value
+	}
+	// things like %{name} or %name
+	for _, t := range tags {
+		if str == strings.ToLower(t.Name) {
+			if hasnot {
+				return ""
+			}
+			return t.Value
+		}
+	}
+	if hasnot {
+		return dft
+	}
+	return ""
 }

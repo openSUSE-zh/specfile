@@ -7,10 +7,10 @@ import (
 // Specfile specfile struct
 type Specfile struct {
 	Subpackages  []Specfile
-	Tags         []item
+	Tags         []Tag
 	Macros       Macros
 	Sections     []Section
-	Dependencies []item
+	Dependencies []Dependency
 }
 
 // append append value to fields

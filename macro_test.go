@@ -139,8 +139,8 @@ func TestParseMacroWithNoDefinition(t *testing.T) {
 	if m.Indicator != "" {
 		t.Errorf("[macro]parsed indicator is wrong, expected empty, got '%s'", m.Indicator)
 	}
-	if m.Name != "%fcitx5_version" {
-		t.Errorf("[macro]parsed name is wrong, expected %%fcitx5_version, got '%s'", m.Name)
+	if m.Name != "fcitx5_version" {
+		t.Errorf("[macro]parsed name is wrong, expected fcitx5_version, got '%s'", m.Name)
 	}
 	if m.Value != "5.0.1" {
 		t.Errorf("[macro]parsed value is wrong, expected 5.0.1, got '%s'", m.Value)
@@ -149,14 +149,14 @@ func TestParseMacroWithNoDefinition(t *testing.T) {
 
 func TestParseMacroFile(t *testing.T) {
 	macros, err := parseMacroFile(strings.NewReader("%define fcitx5_version() %(fcitx5 -v)\n%fcitx5_name fcitx5"))
-	result := Macros{Macro{"%define", "function", item{"fcitx5_version()", "%(fcitx5 -v)", "", "", nil}}, Macro{"", "variable", item{"%fcitx5_name", "fcitx5", "", "", nil}}}
+	result := Macros{Macro{"%define", "function", item{"fcitx5_version()", "%(fcitx5 -v)", "", "", nil}}, Macro{"", "variable", item{"fcitx5_name", "fcitx5", "", "", nil}}}
 	if !reflect.DeepEqual(macros, result) || err != nil {
 		t.Error("[macro]parseMacroFile test failed")
 	}
 }
 
 func TestUpdateMacro(t *testing.T) {
-	m := Macro{"", "variable", item{"%fcitx_name", "fcitx5", "", "", nil}}
+	m := Macro{"", "variable", item{"fcitx_name", "fcitx5", "", "", nil}}
 	m.Update("fcitx6")
 	if m.Value != "fcitx6" {
 		t.Error("[macro]update macro test failed")
@@ -183,7 +183,7 @@ func TestConcatMacros(t *testing.T) {
 func TestParseBuildConfig(t *testing.T) {
 	str := "%define gcc_version 5\nConflict: kiwi:systemd-mini\nMacros:\n%rubySTOP() %nil\n:Macros"
 	macros, err := parseBuildConfig(strings.NewReader(str))
-	result := Macros{Macro{"%define", "variable", item{"gcc_version", "5", "", "", nil}}, Macro{"", "function", item{"%rubySTOP()", "%nil", "", "", nil}}}
+	result := Macros{Macro{"%define", "variable", item{"gcc_version", "5", "", "", nil}}, Macro{"", "function", item{"rubySTOP()", "%nil", "", "", nil}}}
 	if err != nil || !reflect.DeepEqual(macros, result) {
 		t.Error("[macro]parseBuildConfig test failed")
 	}
