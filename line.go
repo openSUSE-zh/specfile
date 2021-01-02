@@ -1,13 +1,12 @@
 package specfile
 
 import (
-	"regexp"
 	"strings"
+	"unicode"
 )
 
 var (
-	tagR                  = regexp.MustCompile(`^([A-Z]\S+):\s+([^\n]+)`)
-	tagRegex              = regexp.MustCompile(`^([A-Z]\S+):\s+([^\n]+)`)
+	dependencyMap         = map[string]struct{}{"BuildRequires": {}, "Requires": {}, "Obsoletes": {}, "Provides": {}, "Conflicts": {}, "Recommends": {}, "Supplements": {}, "Suggests": {}, "Enhances": {}}
 	sectionMap            = map[string]struct{}{"%package": {}, "%prep": {}, "generate_buildrequires": {}, "%build": {}, "%install": {}, "%check": {}, "%clean": {}, "%preun": {}, "%postun": {}, "%pretrans": {}, "%posttrans": {}, "%pre": {}, "%post": {}, "%files": {}, "%changelog": {}, "%description": {}, "%triggerpostun": {}, "%triggerprein": {}, "%triggerun": {}, "%triggerin": {}, "%trigger": {}, "%verifyscript": {}, "%sepolicy": {}, "%filetriggerin": {}, "%filetrigger": {}, "%filetriggerun": {}, "%filetriggerpostun": {}, "%transfiletriggerin": {}, "%transfiletrigger": {}, "%transfiletriggerun": {}, "%transfiletriggerpostun": {}, "%patchlist": {}, "%sourcelist": {}}
 	conditionalIndicators = []string{"%if", "%else", "%elif", "%end"}
 )
@@ -41,10 +40,10 @@ func (line Line) isConditional() bool {
 
 // isSection if the line is a specfile section like %build, %install
 func (line Line) isSection() bool {
-	for m := range sectionMap {
+	for section := range sectionMap {
 		// section indicator must be itself like "%files" or with whitespaces like "%files -n"
 		// or "%install" will match "%install_info"
-		if strings.HasPrefix(line.Last, m+"\n") || strings.HasPrefix(line.Last, m+" ") {
+		if strings.HasPrefix(line.Last, section+"\n") || strings.HasPrefix(line.Last, section+" ") {
 			return true
 		}
 	}
@@ -59,12 +58,23 @@ func (line Line) isMacro() bool {
 	return false
 }
 
-// isTag if the line is a rpm tag like "BuildRequires: xz"
-func (line Line) isTag() bool {
-	if tagRegex.MatchString(line.Last) {
-		return true
+// isDependency if the line is a dependency tag
+func (line Line) isDependency() bool {
+	for k := range dependencyMap {
+		if strings.HasPrefix(line.Last, k) {
+			return true
+		}
 	}
 	return false
+}
+
+// isTag if the line is a rpm tag like "Name: xz"
+func (line Line) isTag() bool {
+	r := []rune(line.Last)
+	if len(r) == 0 {
+		return false
+	}
+	return unicode.IsUpper([]rune(line.Last)[0])
 }
 
 // Concat prepend or append lines of string to Line struct

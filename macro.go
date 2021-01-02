@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	dirutils "github.com/marguerite/util/dir"
 	"github.com/marguerite/util/slice"
@@ -24,7 +25,7 @@ type Macros []Macro
 func (macros Macros) Find(m Macro) int {
 	for i, v := range macros {
 		if v.Name == m.Name &&
-			v.Conditional == m.Conditional {
+			v.Condition == m.Condition {
 			return i
 		}
 	}
@@ -44,12 +45,9 @@ func (macros *Macros) Concat(macros1 Macros) {
 
 // Macro represent a rpm macro
 type Macro struct {
-	Indicator   string // %global or %define
-	Type        string // function or variable
-	Name        string
-	Value       string
-	Conditional string
-	Raw         *Tokenizer
+	Indicator string // %global or %define
+	Type      string // function or variable
+	item
 }
 
 // Parse actually parse the macro
@@ -201,39 +199,64 @@ func parseBuildConfig(f io.ReaderAt) (Macros, error) {
 }
 
 func expandMacro(str string, system, local Macros) string {
+	// no macro at all
 	if !strings.Contains(str, "%") {
 		return str
 	}
-	slice.Concat(&local, system)
 
-	bytes := []byte(str)
+	// expand the escape first
+	str = strings.Replace(str, "%%", "%", -1)
 	fmt.Println(str)
-	var records []string
-	var tmp []byte
-	start := false
 
-	for _, v := range bytes {
+	var records []string
+	var tmp []rune
+	var start, useCounter bool
+	var idx int
+	var c Counter
+
+	for i, v := range str {
 		if v == '%' {
 			start = true
-		}
-		if v == ' ' || v == '\t' {
-			if start {
-				records = append(records, string(tmp))
-				tmp = []byte{}
-			}
-			start = false
+			idx = i
 		}
 		if start {
+			// don't allow nested macro, find the most inner macro first
+			if v == '%' {
+				tmp = []rune{'%'}
+				idx = i
+				useCounter = false
+				continue
+			}
 			tmp = append(tmp, v)
+			// the next is '{' or '(', we should find the corresponding '}' or ')' to close
+			if i == idx+1 && (v == '{' || v == '(') {
+				useCounter = true
+			}
+			// eg '%ix86 x86_64 %arm' stop at whitespace or end of str
+			if !useCounter && (unicode.IsSpace(v) || i == len([]rune(str))-1) {
+				records = append(records, string(tmp))
+				tmp = []rune{}
+				start = false
+			}
+			if useCounter {
+				c.Count([]byte(string(tmp)))
+				if c.Valid() {
+					records = append(records, string(tmp))
+					tmp = []rune{}
+					useCounter = false
+					start = false
+				}
+				c.Reset()
+			}
 		}
 	}
 
 	for _, v := range records {
-		if i := local.Find(Macro{"", "", v, "", "", nil}); i >= 0 {
+		fmt.Println(v)
+		if i := local.Find(Macro{"", "", item{v, "", "", "", nil}}); i >= 0 {
 			str = strings.Replace(str, v, local[i].Value, 1)
 		}
 	}
-	fmt.Println(str)
 
 	return str
 }

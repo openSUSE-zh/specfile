@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/openSUSE-zh/specfile"
@@ -18,4 +19,5 @@ func main() {
 		panic(err)
 	}
 	parser.Parse()
+	fmt.Println(parser.Spec.Dependencies)
 }

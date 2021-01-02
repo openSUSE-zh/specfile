@@ -149,14 +149,14 @@ func TestParseMacroWithNoDefinition(t *testing.T) {
 
 func TestParseMacroFile(t *testing.T) {
 	macros, err := parseMacroFile(strings.NewReader("%define fcitx5_version() %(fcitx5 -v)\n%fcitx5_name fcitx5"))
-	result := Macros{Macro{"%define", "function", "fcitx5_version()", "%(fcitx5 -v)", "", nil}, Macro{"", "variable", "%fcitx5_name", "fcitx5", "", nil}}
+	result := Macros{Macro{"%define", "function", item{"fcitx5_version()", "%(fcitx5 -v)", "", "", nil}}, Macro{"", "variable", item{"%fcitx5_name", "fcitx5", "", "", nil}}}
 	if !reflect.DeepEqual(macros, result) || err != nil {
 		t.Error("[macro]parseMacroFile test failed")
 	}
 }
 
 func TestUpdateMacro(t *testing.T) {
-	m := Macro{"", "variable", "%fcitx_name", "fcitx5", "", nil}
+	m := Macro{"", "variable", item{"%fcitx_name", "fcitx5", "", "", nil}}
 	m.Update("fcitx6")
 	if m.Value != "fcitx6" {
 		t.Error("[macro]update macro test failed")
@@ -164,7 +164,7 @@ func TestUpdateMacro(t *testing.T) {
 }
 
 func TestFindMacro(t *testing.T) {
-	m := Macro{"", "variable", "%fcitx_name", "fcitx5", "", nil}
+	m := Macro{"", "variable", item{"%fcitx_name", "fcitx5", "", "", nil}}
 	macros := Macros{m}
 	if macros.Find(m) < 0 {
 		t.Error("[macro]find macro test failed")
@@ -172,8 +172,8 @@ func TestFindMacro(t *testing.T) {
 }
 
 func TestConcatMacros(t *testing.T) {
-	macros := Macros{Macro{"", "variable", "%fcitx5_name", "fcitx5", "", nil}}
-	macros1 := Macros{Macro{"", "variable", "%fcitx5_name", "fcitx6", "", nil}}
+	macros := Macros{Macro{"", "variable", item{"%fcitx5_name", "fcitx5", "", "", nil}}}
+	macros1 := Macros{Macro{"", "variable", item{"%fcitx5_name", "fcitx6", "", "", nil}}}
 	macros.Concat(macros1)
 	if !reflect.DeepEqual(macros, macros1) {
 		t.Error("[macro]concat macros test failed")
@@ -183,7 +183,7 @@ func TestConcatMacros(t *testing.T) {
 func TestParseBuildConfig(t *testing.T) {
 	str := "%define gcc_version 5\nConflict: kiwi:systemd-mini\nMacros:\n%rubySTOP() %nil\n:Macros"
 	macros, err := parseBuildConfig(strings.NewReader(str))
-	result := Macros{Macro{"%define", "variable", "gcc_version", "5", "", nil}, Macro{"", "function", "%rubySTOP()", "%nil", "", nil}}
+	result := Macros{Macro{"%define", "variable", item{"gcc_version", "5", "", "", nil}}, Macro{"", "function", item{"%rubySTOP()", "%nil", "", "", nil}}}
 	if err != nil || !reflect.DeepEqual(macros, result) {
 		t.Error("[macro]parseBuildConfig test failed")
 	}

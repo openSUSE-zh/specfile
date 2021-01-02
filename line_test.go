@@ -42,8 +42,15 @@ func TestMacroLine(t *testing.T) {
 	}
 }
 
-func TestTagLine(t *testing.T) {
+func TestDependencyLine(t *testing.T) {
 	line := NewLine(0, "BuildRequires: xz\n")
+	if !line.isDependency() {
+		t.Error("[line]dependency test failed")
+	}
+}
+
+func TestTagLine(t *testing.T) {
+	line := NewLine(0, "Name: xz\n")
 	if !line.isTag() {
 		t.Error("[line]Tag test failed")
 	}
