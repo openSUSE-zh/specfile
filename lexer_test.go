@@ -35,8 +35,16 @@ func TestMacroTokenizer(t *testing.T) {
 	}
 }
 
-func TestTagTokenizer(t *testing.T) {
+func TestDependencyTokenizer(t *testing.T) {
 	str := "BuildRequires: xz"
+	tokenizers, _ := NewTokenizers(strings.NewReader(str))
+	if tokenizers[0].Type != "Dependency" || tokenizers[0].Content != str {
+		t.Error("[lexer]dependency tokenizer test failed")
+	}
+}
+
+func TestTagTokenizer(t *testing.T) {
+	str := "Name: xz"
 	tokenizers, _ := NewTokenizers(strings.NewReader(str))
 	if tokenizers[0].Type != "Tag" || tokenizers[0].Content != str {
 		t.Error("[lexer]tag tokenizer test failed")
