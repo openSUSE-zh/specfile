@@ -188,3 +188,42 @@ func TestParseBuildConfig(t *testing.T) {
 		t.Error("[macro]parseBuildConfig test failed")
 	}
 }
+
+func TestTrim(t *testing.T) {
+	str := "%{version}"
+	if trim(str) != "version" {
+		t.Error("[macro]trim test failed")
+	}
+}
+
+func TestSplitConditionalMacro(t *testing.T) {
+	str := "%{?version}"
+	str, dft, i := splitConditionalMacro(str)
+	if str != "version" || len(dft) != 0 || i <= 0 {
+		t.Error("[macro]splitConditionalMacro test failed")
+	}
+}
+
+func TestSplitConditionalMacroWithNoSymbol(t *testing.T) {
+	str := "%{version}"
+	str, dft, i := splitConditionalMacro(str)
+	if str != "version" || len(dft) != 0 || i != 0 {
+		t.Error("[macro]splitConditionalMacro no '!?' or '?' test failed")
+	}
+}
+
+func TestSplitConditionalMacroWithNonExistence(t *testing.T) {
+	str := "%{!?version}"
+	str, dft, i := splitConditionalMacro(str)
+	if str != "version" || len(dft) != 0 || i >= 0 {
+		t.Error("[macro]splitConditionalMacro with !? test failed")
+	}
+}
+
+func TestSplitConditionalMacroWithNonExistenceAndDefaultValue(t *testing.T) {
+	str := "%{!?version:5}"
+	str, dft, i := splitConditionalMacro(str)
+	if str != "version" || dft != "5" || i >= 0 {
+		t.Error("[macro]splitConditionalMacro with !? and default value test failed")
+	}
+}

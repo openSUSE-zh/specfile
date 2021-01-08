@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -18,15 +20,27 @@ var (
 	buildConfig = "/usr/lib/build/configs/default.conf"
 )
 
+func getFunctionName(str string) string {
+	var tmp []rune
+	for _, r := range []rune(str) {
+		if r == '(' {
+			break
+		}
+		tmp = append(tmp, r)
+	}
+	return string(tmp)
+}
+
 // Macros rpm macros
 type Macros []Macro
 
 // Find find a specific macro through macros
 func (macros Macros) Find(m Macro) int {
 	for i, v := range macros {
-		if v.Name == m.Name &&
-			v.Condition == m.Condition {
-			return i
+		if v.Condition == m.Condition {
+			if (v.Type == "variable" && v.Name == m.Name) || (v.Type == "function" && getFunctionName(v.Name) == m.Name) {
+				return i
+			}
 		}
 	}
 	return -1
@@ -202,13 +216,12 @@ func parseBuildConfig(f io.ReaderAt) (Macros, error) {
 func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 	// no macro at all
 	str := macro.Value
-	if !strings.Contains(str, "%") {
+	if !strings.Contains(str, "%") || macro.Type == "function" {
 		return str
 	}
-
-	// expand the escape first
-	fmt.Println(str)
-	str = strings.Replace(str, "%%", "%", -1)
+	if strings.Contains(str, "expand:") {
+		str = expand(str)
+	}
 
 	var records []string
 	var tmp []rune
@@ -255,62 +268,151 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 	}
 
 	for _, v := range records {
-		str = strings.Replace(str, v, replaceMacroWithValue(v, system, local, tags), 1)
+		str = strings.Replace(str, v, fillupMacroWithValue(v, system, local, tags), 1)
 	}
 
-	fmt.Println(str)
+	// the outer
+	if strings.Contains(trim(str), "%") {
+		newMacro := macro
+		newMacro.Value = str
+		newMacro.Type = "variable"
+		str = expandMacro(newMacro, system, local, tags)
+	}
 
+	if len(str) > 1 {
+		// shell commands
+		if str[1] == '(' {
+			str = getShellOutput(trim(str))
+		}
+		// macro function
+		if str[1] == '{' {
+			str = execMacroFunction(str, system, local)
+			newMacro := macro
+			newMacro.Value = str
+			newMacro.Type = "variable"
+			str = expandMacro(newMacro, system, local, tags)
+		}
+	}
 	return str
 }
 
-func removeSurroundings(str string) string {
-	var tmp []rune
-	for i, v := range str {
-		if i == 0 && v == '%' {
-			continue
-		}
-		if i == 1 && (v == '{' || v == '(') {
-			continue
-		}
-		if i == len([]rune(str))-1 && (v == '}' || v == ')') {
-			break
-		}
-		tmp = append(tmp, v)
+func execMacroFunction(s string, system, local Macros) string {
+	str := trim(s)
+	arr := strings.Split(str, " ")
+
+	if arr[0] == str {
+		// not a macro function
+		return s
 	}
-	return string(tmp)
+
+	name := arr[0]
+	num := len(arr) - 1
+	if i := local.Find(Macro{"", "", item{name, "", "", "", nil}}); i >= 0 {
+		val := local[i].Value
+		for j := 1; j <= num; j++ {
+			if strings.Contains(val, "%{"+strconv.Itoa(j)+"}") {
+				val = strings.Replace(val, "%{"+strconv.Itoa(j)+"}", arr[j], -1)
+			}
+		}
+		return val
+	}
+	return ""
 }
 
-func replaceMacroWithValue(str string, system, local Macros, tags []Tag) string {
-	str = removeSurroundings(str)
-	var has, hasnot bool
-	var dft string
+func getShellOutput(str string) string {
+	out, err := exec.Command("/bin/sh", "-c", str).Output()
+	if err != nil {
+		panic(err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func expand(str string) string {
+	idx := strings.LastIndex(str, "expand:")
+
+	if idx < 0 {
+		return str
+	}
+
+	// without {, there must be only one expand
+	if str[idx-1] == '%' {
+		str = strings.Replace(str, "%expand:", "", -1)
+		return strings.Replace(str, "%%", "", -1)
+	}
+
+	var c Counter
+	tmp := []byte{'%', '{'}
+	for i := idx; i < len(str); i++ {
+		tmp = append(tmp, str[i])
+		c.Count(tmp)
+		if c.Valid() {
+			c.Reset()
+			break
+		}
+		c.Reset()
+	}
+
+	tmp1 := strings.Replace(string(tmp), "expand:", "", -1)
+	tmp1 = strings.Replace(tmp1, "%%", "%", -1)
+	tmp1 = trim(tmp1)
+
+	str = strings.Replace(str, string(tmp), tmp1, 1)
+	if strings.Contains(str, "expand:") {
+		str = expand(str)
+	}
+	return str
+}
+
+// trim trim the surrounding "%{}"
+func trim(str string) string {
+	str = strings.TrimLeftFunc(str, func(r rune) bool {
+		return r == '%' || r == '{' || r == '('
+	})
+	return strings.TrimRightFunc(str, func(r rune) bool {
+		return r == '}' || r == ')'
+	})
+}
+
+// splitConditionalMacro split conditional macro like "%{!?version:5}" or "%{?version}"
+// to the macro "version", default value "5", and a status symbol `stat` (> 0 means ?, < 0 means !?, = 0 means no such prefix)
+func splitConditionalMacro(str string) (string, string, int) {
+	str = trim(str)
+	stat := 0
+
+	var defaultValue string
 
 	// do the ?! and ? judge
-	if strings.HasPrefix(str, "?!") {
-		hasnot = true
-		str = strings.TrimPrefix(str, "?!")
+	if strings.HasPrefix(str, "!?") {
+		stat = -1
+		str = strings.TrimPrefix(str, "!?")
 	}
 	if strings.HasPrefix(str, "?") {
-		has = true
+		stat = 1
 		str = strings.TrimPrefix(str, "?")
 	}
 
-	if has || hasnot {
+	if strings.Contains(str, ":") {
 		arr := strings.Split(str, ":")
 		if arr[0] != str {
 			str = arr[0]
-			dft = arr[1]
+			defaultValue = arr[1]
 		}
 	}
 
+	return str, defaultValue, stat
+}
+
+func fillupMacroWithValue(str string, system, local Macros, tags []Tag) string {
+	str, defaultValue, stat := splitConditionalMacro(str)
+
 	if i := local.Find(Macro{"", "", item{str, "", "", "", nil}}); i >= 0 {
-		if hasnot {
+		if stat < 0 {
 			return ""
 		}
 		return local[i].Value
 	}
 	if i := system.Find(Macro{"", "", item{str, "", "", "", nil}}); i >= 0 {
-		if hasnot {
+		if stat < 0 {
 			return ""
 		}
 		return system[i].Value
@@ -318,14 +420,14 @@ func replaceMacroWithValue(str string, system, local Macros, tags []Tag) string 
 	// things like %{name} or %name
 	for _, t := range tags {
 		if str == strings.ToLower(t.Name) {
-			if hasnot {
+			if stat < 0 {
 				return ""
 			}
 			return t.Value
 		}
 	}
-	if hasnot {
-		return dft
+	if stat < 0 {
+		return defaultValue
 	}
 	return ""
 }
