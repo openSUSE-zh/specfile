@@ -2,7 +2,6 @@ package specfile
 
 import (
 	"strings"
-	"unicode"
 )
 
 // Section a section defined in sectionMap
@@ -15,30 +14,16 @@ type Section struct {
 func (s *Section) Parse(token *Tokenizer) {
 	s.Raw = token
 
-	lines := strings.Split(token.Content, "-n")
+	arr := strings.Fields(token.Content)
 
-	if len(lines) > 1 {
-		// "%post -n fcitx5-configtool -p /sbin/ldconfig"
-		s.Name = strings.TrimSpace(lines[0])
-		var belongs []rune
-		for _, r := range strings.TrimSpace(lines[1]) {
-			if unicode.IsSpace(r) {
-				break
-			}
-			belongs = append(belongs, r)
-		}
-		s.Belongs = string(belongs)
-		s.Value = strings.TrimSpace(strings.Replace(lines[1], string(belongs), "", 1))
+	if arr[1] == "-n" {
+		// "%post -n fcitx5-configtool -p /sbin/ldconfig\n"
+		s.Name = arr[0]
+		s.Belongs = arr[2]
+		s.Value = strings.Join(arr[3:], " ")
 	} else {
-		// "%post -p /sbin/ldconfig"
-		var name []rune
-		for _, r := range token.Content {
-			if unicode.IsSpace(r) {
-				break
-			}
-			name = append(name, r)
-		}
-		s.Name = string(name)
-		s.Value = strings.TrimSpace(strings.Replace(token.Content, s.Name, "", 1))
+		// "%post -p /sbin/ldconfig\n"
+		s.Name = arr[0]
+		s.Value = strings.Join(arr[1:], " ")
 	}
 }

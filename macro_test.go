@@ -190,40 +190,67 @@ func TestParseBuildConfig(t *testing.T) {
 }
 
 func TestTrim(t *testing.T) {
-	str := "%{version}"
-	if trim(str) != "version" {
+	str := "%{%{version}}"
+	if trim(str) != "%{version}" {
 		t.Error("[macro]trim test failed")
 	}
 }
 
 func TestSplitConditionalMacro(t *testing.T) {
 	str := "%{?version}"
-	str, dft, i := splitConditionalMacro(str)
-	if str != "version" || len(dft) != 0 || i <= 0 {
+	str, dft, ok := splitConditionalMacro(str)
+	if str != "version" || len(dft) != 0 || ok {
 		t.Error("[macro]splitConditionalMacro test failed")
 	}
 }
 
 func TestSplitConditionalMacroWithNoSymbol(t *testing.T) {
 	str := "%{version}"
-	str, dft, i := splitConditionalMacro(str)
-	if str != "version" || len(dft) != 0 || i != 0 {
+	str, dft, ok := splitConditionalMacro(str)
+	if str != "version" || len(dft) != 0 || ok {
 		t.Error("[macro]splitConditionalMacro no '!?' or '?' test failed")
 	}
 }
 
 func TestSplitConditionalMacroWithNonExistence(t *testing.T) {
 	str := "%{!?version}"
-	str, dft, i := splitConditionalMacro(str)
-	if str != "version" || len(dft) != 0 || i >= 0 {
+	str, dft, ok := splitConditionalMacro(str)
+	if str != "version" || len(dft) != 0 || !ok {
 		t.Error("[macro]splitConditionalMacro with !? test failed")
 	}
 }
 
 func TestSplitConditionalMacroWithNonExistenceAndDefaultValue(t *testing.T) {
 	str := "%{!?version:5}"
-	str, dft, i := splitConditionalMacro(str)
-	if str != "version" || dft != "5" || i >= 0 {
+	str, dft, ok := splitConditionalMacro(str)
+	if str != "version" || dft != "5" || !ok {
 		t.Error("[macro]splitConditionalMacro with !? and default value test failed")
+	}
+}
+
+func TestCallShell(t *testing.T) {
+	if callShell("echo true") != "true" {
+		t.Error("[macro]callShell test failed")
+	}
+}
+
+func TestExpand(t *testing.T) {
+	str := "%{expand:%%{expand:%%{version}}}"
+	if expand(str) != "%{version}" {
+		t.Error("[macro]expand macro test failed")
+	}
+}
+
+func TestExpandWithNoExpand(t *testing.T) {
+	str := "%{version}"
+	if expand(str) != "%{version}" {
+		t.Error("[macro]expand macro with no expand test failed")
+	}
+}
+
+func TestExpandWithSingleExpand(t *testing.T) {
+	str := "%{expand:%%{version}}"
+	if expand(str) != "%{version}" {
+		t.Error("[macro]expand macro with single expand test failed")
 	}
 }

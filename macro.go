@@ -22,7 +22,7 @@ var (
 )
 
 func getFunctionName(str string) string {
-	tmp := make([]byte, 0, len(str))
+	tmp := make([]byte, len(str))
 	var i int
 	for _, b := range []byte(str) {
 		if b == '(' {
@@ -230,9 +230,9 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 	var idx, j, n int
 	var c Counter
 
-	tmp := make([]byte, 0, len(str))
+	tmp := make([]byte, len(str))
 	// usuall you will not see a macro body containing more than 30 other macros
-	records := make([]string, 0, 30)
+	records := make([]string, 30)
 
 	for i, v := range []byte(str) {
 		if v == '%' {
@@ -261,7 +261,7 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 				// the space was appended to tmp
 				records[n] = string(tmp)
 				n++
-				tmp = make([]byte, 0, len(str)-1-i)
+				tmp = make([]byte, len(str)-1-i)
 				start = false
 			}
 			if useCounter {
@@ -269,7 +269,7 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 				if c.Valid() {
 					records[n] = string(tmp)
 					n++
-					tmp = make([]byte, 0, len(str)-1-i)
+					tmp = make([]byte, len(str)-1-i)
 					useCounter = false
 					start = false
 				}
@@ -330,6 +330,7 @@ func execMacroFunction(s string, system, local Macros) string {
 	return ""
 }
 
+// callShell implementation of rpm %()
 func callShell(str string) string {
 	out, err := exec.Command("/bin/sh", "-c", str).Output()
 	if err != nil {
@@ -338,48 +339,42 @@ func callShell(str string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// newExpandReplacer build a new strings.Replacer
-func newExpandReplacer(percent bool) *strings.Replacer {
-	arr := []string{"expand:", "", "%%", ""}
-	if percent {
-		arr[0] = "%expand:"
-	}
-	return strings.NewReplacer(arr...)
-}
-
 // expand implementation of rpm %{expand: }
 func expand(str string) string {
 	idx := strings.LastIndex(str, "expand:")
+	fmt.Println(str)
+	fmt.Println(idx)
 
 	if idx < 0 {
 		return str
 	}
 
-	// without {, there must be only one expand
-	// usually str[idx-1] is '{'
-	if str[idx-1] == '%' {
-		return newExpandReplacer(true).Replace(str)
-	}
-
 	var c Counter
+	replacer := strings.NewReplacer("expand:", "", "%%", "%")
 
-	arr := make([]byte, 2, len(str))
+	arr := make([]byte, len(str)-idx+2)
 	arr[0] = '%'
 	arr[1] = '{'
 	j := 2
 
 	for i := idx; i < len(str); i++ {
+		fmt.Printf("j:%d\n", j)
+		fmt.Printf("i:%d\n", i)
 		arr[j] = str[i]
 		c.Count(arr)
 		if c.Valid() {
 			break
 		}
 		c.Reset()
-                j++
+		j++
 	}
 
+	fmt.Println(string(arr))
+
 	s := string(arr)
-	tmp := trim(newExpandReplacer(false).Replace(s))
+	fmt.Println(replacer.Replace(s))
+	tmp := trim(replacer.Replace(s))
+	fmt.Println(tmp)
 	str = strings.Replace(str, s, tmp, 1)
 
 	if strings.Contains(str, "expand:") {
@@ -391,31 +386,38 @@ func expand(str string) string {
 
 // trim trim the surrounding "%{}"
 func trim(str string) string {
-	str = strings.TrimLeftFunc(str, func(r rune) bool {
-		return r == '%' || r == '{' || r == '('
-	})
-	return strings.TrimRightFunc(str, func(r rune) bool {
-		return r == '}' || r == ')'
-	})
+	var start, stop int
+	length := len(str)
+
+	if str[length-1] == '}' || str[length-1] == ')' {
+		stop = length - 1
+	}
+
+	if str[1] == '{' || str[1] == '(' {
+		start = 2
+	}
+
+	return str[start:stop]
 }
 
 // splitConditionalMacro split conditional macro like "%{!?version:5}" or "%{?version}"
-// to the macro "version", default value "5", and a status symbol `stat` (> 0 means ?, < 0 means !?, = 0 means no such prefix)
-func splitConditionalMacro(str string) (string, string, int) {
+// to the macro "version", default value "5", and a negative symbol
+func splitConditionalMacro(str string) (string, string, bool) {
 	str = trim(str)
-	stat := 0
-
+	var neg bool
+	var start int
 	var defaultValue string
 
-	// do the ?! and ? judge
-	if strings.HasPrefix(str, "!?") {
-		stat = -1
-		str = strings.TrimPrefix(str, "!?")
+	if str[0] == '!' {
+		neg = true
+		start = 2
 	}
-	if strings.HasPrefix(str, "?") {
-		stat = 1
-		str = strings.TrimPrefix(str, "?")
+
+	if str[0] == '?' {
+		start = 1
 	}
+
+	str = str[start:]
 
 	if strings.Contains(str, ":") {
 		arr := strings.Split(str, ":")
@@ -425,20 +427,20 @@ func splitConditionalMacro(str string) (string, string, int) {
 		}
 	}
 
-	return str, defaultValue, stat
+	return str, defaultValue, neg
 }
 
 func fillupMacroWithValue(str string, system, local Macros, tags []Tag) string {
 	str, defaultValue, stat := splitConditionalMacro(str)
 
 	if i := local.Find(Macro{"", "", item{str, "", "", "", nil}}); i >= 0 {
-		if stat < 0 {
+		if stat {
 			return ""
 		}
 		return local[i].Value
 	}
 	if i := system.Find(Macro{"", "", item{str, "", "", "", nil}}); i >= 0 {
-		if stat < 0 {
+		if stat {
 			return ""
 		}
 		return system[i].Value
@@ -446,13 +448,13 @@ func fillupMacroWithValue(str string, system, local Macros, tags []Tag) string {
 	// things like %{name} or %name
 	for _, t := range tags {
 		if str == strings.ToLower(t.Name) {
-			if stat < 0 {
+			if stat {
 				return ""
 			}
 			return t.Value
 		}
 	}
-	if stat < 0 {
+	if stat {
 		return defaultValue
 	}
 	return ""

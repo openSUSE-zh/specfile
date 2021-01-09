@@ -1,6 +1,8 @@
 package specfile
 
-import "strings"
+import (
+	"strings"
+)
 
 // item holds universal fields
 type item struct {
@@ -15,18 +17,8 @@ type item struct {
 func (i *item) Parse(token *Tokenizer) {
 	i.Raw = token
 
-	// Name: xz
-	var j int
-	name := make([]byte, 0, 80)
+	arr := strings.Split(token.Content, ":")
 
-	for _, v := range []byte(token.Content) {
-		if v == ':' {
-			break
-		}
-		name[j] = v
-		j++
-	}
-
-	i.Name = string(name)
-	i.Value = strings.TrimSpace(strings.Replace(token.Content, string(name)+":", "", 1))
+	i.Name = arr[0]
+	i.Value = strings.TrimSpace(arr[1])
 }

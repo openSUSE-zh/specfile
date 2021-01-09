@@ -3,6 +3,7 @@ package specfile
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -70,11 +71,11 @@ func (line Line) isDependency() bool {
 
 // isTag if the line is a rpm tag like "Name: xz"
 func (line Line) isTag() bool {
-	r := []rune(line.Last)
-	if len(r) == 0 {
+	if len(strings.TrimSpace(line.Last)) == 0 {
 		return false
 	}
-	return unicode.IsUpper([]rune(line.Last)[0])
+	r, _ := utf8.DecodeRuneInString(line.Last)
+	return unicode.IsUpper(r)
 }
 
 // Concat prepend or append lines of string to Line struct
