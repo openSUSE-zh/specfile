@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	dirutils "github.com/marguerite/util/dir"
 	"github.com/marguerite/util/slice"
@@ -21,12 +22,14 @@ var (
 )
 
 func getFunctionName(str string) string {
-	var tmp []rune
-	for _, r := range []rune(str) {
-		if r == '(' {
+	tmp := make([]byte, 0, len(str))
+	var i int
+	for _, b := range []byte(str) {
+		if b == '(' {
 			break
 		}
-		tmp = append(tmp, r)
+		tmp[i] = b
+		i++
 	}
 	return string(tmp)
 }
@@ -223,13 +226,15 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 		str = expand(str)
 	}
 
-	var records []string
-	var tmp []rune
 	var start, useCounter bool
-	var idx int
+	var idx, j, n int
 	var c Counter
 
-	for i, v := range str {
+	tmp := make([]byte, 0, len(str))
+	// usuall you will not see a macro body containing more than 30 other macros
+	records := make([]string, 0, 30)
+
+	for i, v := range []byte(str) {
 		if v == '%' {
 			start = true
 			idx = i
@@ -237,28 +242,34 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 		if start {
 			// don't allow nested macro, find the most inner macro first
 			if v == '%' {
-				tmp = []rune{'%'}
+				tmp[0] = '%'
+				j++
 				idx = i
 				useCounter = false
 				continue
 			}
-			tmp = append(tmp, v)
+			tmp[j] = v
+			j++
 			// the next is '{' or '(', we should find the corresponding '}' or ')' to close
 			if i == idx+1 && (v == '{' || v == '(') {
 				useCounter = true
 			}
 			// eg '%ix86 x86_64 %arm' stop at whitespace or end of str
-			if !useCounter && (unicode.IsSpace(v) || i == len([]rune(str))-1) {
+			r, _ := utf8.DecodeRune([]byte{v})
+
+			if !useCounter && (unicode.IsSpace(r) || i == len(str)-1) {
 				// the space was appended to tmp
-				records = append(records, strings.TrimSpace(string(tmp)))
-				tmp = []rune{}
+				records[n] = string(tmp)
+				n++
+				tmp = make([]byte, 0, len(str)-1-i)
 				start = false
 			}
 			if useCounter {
-				c.Count([]byte(string(tmp)))
+				c.Count(tmp)
 				if c.Valid() {
-					records = append(records, string(tmp))
-					tmp = []rune{}
+					records[n] = string(tmp)
+					n++
+					tmp = make([]byte, 0, len(str)-1-i)
 					useCounter = false
 					start = false
 				}
@@ -282,7 +293,7 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 	if len(str) > 1 {
 		// shell commands
 		if str[1] == '(' {
-			str = getShellOutput(trim(str))
+			str = callShell(trim(str))
 		}
 		// macro function
 		if str[1] == '{' {
@@ -319,7 +330,7 @@ func execMacroFunction(s string, system, local Macros) string {
 	return ""
 }
 
-func getShellOutput(str string) string {
+func callShell(str string) string {
 	out, err := exec.Command("/bin/sh", "-c", str).Output()
 	if err != nil {
 		panic(err)
@@ -327,6 +338,16 @@ func getShellOutput(str string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// newExpandReplacer build a new strings.Replacer
+func newExpandReplacer(percent bool) *strings.Replacer {
+	arr := []string{"expand:", "", "%%", ""}
+	if percent {
+		arr[0] = "%expand:"
+	}
+	return strings.NewReplacer(arr...)
+}
+
+// expand implementation of rpm %{expand: }
 func expand(str string) string {
 	idx := strings.LastIndex(str, "expand:")
 
@@ -335,31 +356,36 @@ func expand(str string) string {
 	}
 
 	// without {, there must be only one expand
+	// usually str[idx-1] is '{'
 	if str[idx-1] == '%' {
-		str = strings.Replace(str, "%expand:", "", -1)
-		return strings.Replace(str, "%%", "", -1)
+		return newExpandReplacer(true).Replace(str)
 	}
 
 	var c Counter
-	tmp := []byte{'%', '{'}
+
+	arr := make([]byte, 2, len(str))
+	arr[0] = '%'
+	arr[1] = '{'
+	j := 2
+
 	for i := idx; i < len(str); i++ {
-		tmp = append(tmp, str[i])
-		c.Count(tmp)
+		arr[j] = str[i]
+		c.Count(arr)
 		if c.Valid() {
-			c.Reset()
 			break
 		}
 		c.Reset()
+                j++
 	}
 
-	tmp1 := strings.Replace(string(tmp), "expand:", "", -1)
-	tmp1 = strings.Replace(tmp1, "%%", "%", -1)
-	tmp1 = trim(tmp1)
+	s := string(arr)
+	tmp := trim(newExpandReplacer(false).Replace(s))
+	str = strings.Replace(str, s, tmp, 1)
 
-	str = strings.Replace(str, string(tmp), tmp1, 1)
 	if strings.Contains(str, "expand:") {
 		str = expand(str)
 	}
+
 	return str
 }
 

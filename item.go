@@ -16,12 +16,15 @@ func (i *item) Parse(token *Tokenizer) {
 	i.Raw = token
 
 	// Name: xz
-	var name []rune
-	for _, v := range token.Content {
+	var j int
+	name := make([]byte, 0, 80)
+
+	for _, v := range []byte(token.Content) {
 		if v == ':' {
 			break
 		}
-		name = append(name, v)
+		name[j] = v
+		j++
 	}
 
 	i.Name = string(name)
