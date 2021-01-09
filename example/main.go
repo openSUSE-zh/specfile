@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/openSUSE-zh/specfile"
@@ -18,4 +19,7 @@ func main() {
 		panic(err)
 	}
 	parser.Parse()
+	for _, v := range parser.Spec.Macros {
+	  fmt.Printf("%s: %s\n", v.Name, v.Value)
+	}
 }

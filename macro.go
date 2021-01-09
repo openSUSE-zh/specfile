@@ -22,14 +22,12 @@ var (
 )
 
 func getFunctionName(str string) string {
-	tmp := make([]byte, len(str))
-	var i int
+	var tmp []byte
 	for _, b := range []byte(str) {
 		if b == '(' {
 			break
 		}
-		tmp[i] = b
-		i++
+		tmp = append(tmp, b)
 	}
 	return string(tmp)
 }
@@ -72,17 +70,16 @@ func (m *Macro) Parse(str string) error {
 	var indicator, name string
 	var tmp []byte
 
-	bytes := []byte(str)
-
-	for i := 0; i < len(bytes); i++ {
-		if i == 0 && bytes[i] != '%' {
+	for i, v := range []byte(str) {
+		if i == 0 && v != '%' {
 			return fmt.Errorf("not a macro")
 		}
-		if bytes[i] == '\\' {
+		if v == '\\' {
 			name = string(tmp)
 			break
 		}
-		if bytes[i] == ' ' || bytes[i] == '\t' {
+		r, _ := utf8.DecodeRune([]byte{v})
+		if unicode.IsSpace(r) {
 			if string(tmp) == "%global" || string(tmp) == "%define" {
 				indicator = string(tmp)
 				tmp = []byte{}
@@ -92,7 +89,7 @@ func (m *Macro) Parse(str string) error {
 				break
 			}
 		}
-		tmp = append(tmp, bytes[i])
+		tmp = append(tmp, v)
 	}
 
 	m.Indicator = indicator
@@ -227,12 +224,11 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 	}
 
 	var start, useCounter bool
-	var idx, j, n int
+	var idx int
 	var c Counter
 
-	tmp := make([]byte, len(str))
-	// usuall you will not see a macro body containing more than 30 other macros
-	records := make([]string, 30)
+	var tmp []byte
+	var records []string
 
 	for i, v := range []byte(str) {
 		if v == '%' {
@@ -242,14 +238,12 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 		if start {
 			// don't allow nested macro, find the most inner macro first
 			if v == '%' {
-				tmp[0] = '%'
-				j++
+				tmp = []byte{'%'}
 				idx = i
 				useCounter = false
 				continue
 			}
-			tmp[j] = v
-			j++
+			tmp = append(tmp, v)
 			// the next is '{' or '(', we should find the corresponding '}' or ')' to close
 			if i == idx+1 && (v == '{' || v == '(') {
 				useCounter = true
@@ -259,17 +253,15 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 
 			if !useCounter && (unicode.IsSpace(r) || i == len(str)-1) {
 				// the space was appended to tmp
-				records[n] = string(tmp)
-				n++
-				tmp = make([]byte, len(str)-1-i)
+				records = append(records, strings.TrimSpace(string(tmp)))
+				tmp = []byte{}
 				start = false
 			}
 			if useCounter {
 				c.Count(tmp)
 				if c.Valid() {
-					records[n] = string(tmp)
-					n++
-					tmp = make([]byte, len(str)-1-i)
+					records = append(records, string(tmp))
+					tmp = []byte{}
 					useCounter = false
 					start = false
 				}
@@ -290,19 +282,17 @@ func expandMacro(macro Macro, system, local Macros, tags []Tag) string {
 		str = expandMacro(newMacro, system, local, tags)
 	}
 
-	if len(str) > 1 {
-		// shell commands
-		if str[1] == '(' {
-			str = callShell(trim(str))
-		}
-		// macro function
-		if str[1] == '{' {
-			str = execMacroFunction(str, system, local)
-			newMacro := macro
-			newMacro.Value = str
-			newMacro.Type = "variable"
-			str = expandMacro(newMacro, system, local, tags)
-		}
+	// shell commands
+	if len(str) > 1 && str[1] == '(' {
+		str = callShell(trim(str))
+	}
+	// macro function
+	if len(str) > 1 && str[1] == '{' {
+		str = execMacroFunction(str, system, local)
+		newMacro := macro
+		newMacro.Value = str
+		newMacro.Type = "variable"
+		str = expandMacro(newMacro, system, local, tags)
 	}
 	return str
 }
@@ -342,8 +332,6 @@ func callShell(str string) string {
 // expand implementation of rpm %{expand: }
 func expand(str string) string {
 	idx := strings.LastIndex(str, "expand:")
-	fmt.Println(str)
-	fmt.Println(idx)
 
 	if idx < 0 {
 		return str
@@ -352,29 +340,19 @@ func expand(str string) string {
 	var c Counter
 	replacer := strings.NewReplacer("expand:", "", "%%", "%")
 
-	arr := make([]byte, len(str)-idx+2)
-	arr[0] = '%'
-	arr[1] = '{'
-	j := 2
+	arr := []byte{'%', '{'}
 
 	for i := idx; i < len(str); i++ {
-		fmt.Printf("j:%d\n", j)
-		fmt.Printf("i:%d\n", i)
-		arr[j] = str[i]
+		arr = append(arr, str[i])
 		c.Count(arr)
 		if c.Valid() {
 			break
 		}
 		c.Reset()
-		j++
 	}
 
-	fmt.Println(string(arr))
-
 	s := string(arr)
-	fmt.Println(replacer.Replace(s))
 	tmp := trim(replacer.Replace(s))
-	fmt.Println(tmp)
 	str = strings.Replace(str, s, tmp, 1)
 
 	if strings.Contains(str, "expand:") {
@@ -386,8 +364,14 @@ func expand(str string) string {
 
 // trim trim the surrounding "%{}"
 func trim(str string) string {
-	var start, stop int
 	length := len(str)
+
+	if length < 3 {
+		return str
+	}
+
+	start := 0
+	stop := length
 
 	if str[length-1] == '}' || str[length-1] == ')' {
 		stop = length - 1

@@ -16,9 +16,8 @@ type item struct {
 // Parse parse the item
 func (i *item) Parse(token *Tokenizer) {
 	i.Raw = token
+        idx := strings.Index(token.Content, ":")
 
-	arr := strings.Split(token.Content, ":")
-
-	i.Name = arr[0]
-	i.Value = strings.TrimSpace(arr[1])
+	i.Name = token.Content[:idx]
+	i.Value = strings.TrimSpace(token.Content[idx+1:])
 }
