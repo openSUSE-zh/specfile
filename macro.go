@@ -377,6 +377,10 @@ func trim(str string) string {
 		stop = length - 1
 	}
 
+	if str[0] == '%' {
+		start = 1
+	}
+
 	if str[1] == '{' || str[1] == '(' {
 		start = 2
 	}
