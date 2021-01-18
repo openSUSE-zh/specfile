@@ -27,3 +27,12 @@ func (s *Section) Parse(token *Tokenizer) {
 		s.Value = strings.Join(arr[1:], " ")
 	}
 }
+
+func ParseSection(token, last Tokenizer, spec *Specfile) {
+	var s Section
+	if last.Type == "Comment" {
+		s.Comment = last.Content
+	}
+	s.Parse(&token)
+	spec.append("Sections", s)
+}

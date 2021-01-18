@@ -115,6 +115,23 @@ func (m *Macro) Update(val string) {
 	m.Value = val
 }
 
+func ParseMacro(token, last Tokenizer, macros Macros, spec *Specfile) {
+	var m Macro
+	if last.Type == "Comment" {
+		m.Comment = last.Content
+	}
+	m.Raw = &token
+	err := m.Parse(token.Content)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+	if strings.Contains(m.Value, "%") {
+		m.Value = expandMacro(m, macros, spec.Macros, spec.Tags)
+	}
+	spec.append("Macros", m)
+}
+
 // initSystemMacros load system defined rpm macros
 func initSystemMacros() Macros {
 	var macros Macros

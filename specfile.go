@@ -14,8 +14,8 @@ type Specfile struct {
 }
 
 // append append value to fields
-func (s *Specfile) append(fld string, val interface{}) {
-	sv := reflect.ValueOf(s).Elem().FieldByName(fld)
+func (s *Specfile) append(field string, val interface{}) {
+	sv := reflect.ValueOf(s).Elem().FieldByName(field)
 	if sv.Len() > 0 {
 		sv.Set(reflect.Append(sv, reflect.ValueOf(val)))
 	} else {

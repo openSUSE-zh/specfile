@@ -28,40 +28,13 @@ func (f *Parser) Parse() error {
 		switch token.Type {
 		case "Conditional":
 		case "Macro":
-			var macro Macro
-			if last.Type == "Comment" {
-				macro.Comment = last.Content
-			}
-			macro.Raw = &token
-			err := (&macro).Parse(token.Content)
-			if err != nil {
-				return err
-			}
-			if strings.Contains(macro.Value, "%") {
-				macro.Value = expandMacro(macro, systemMacros, f.Spec.Macros, f.Spec.Tags)
-			}
-			f.Spec.append("Macros", macro)
+			ParseMacro(token, last, systemMacros, &(f.Spec))
 		case "Dependency":
-			var i Dependency
-			if last.Type == "Comment" {
-				i.Comment = last.Content
-			}
-			(&i).Parse(&token)
-			f.Spec.append("Dependencies", i)
+			ParseDependency(token, last, &(f.Spec))
 		case "Section":
-			var section Section
-			if last.Type == "Comment" {
-				section.Comment = last.Content
-			}
-			(&section).Parse(&token)
-			f.Spec.append("Sections", section)
+			ParseSection(token, last, &(f.Spec))
 		case "Tag":
-			var i Tag
-			if last.Type == "Comment" {
-				i.Comment = last.Content
-			}
-			(&i).Parse(&token)
-			f.Spec.append("Tags", i)
+			ParseTag(token, last, &(f.Spec))
 		}
 		last = token
 	}
