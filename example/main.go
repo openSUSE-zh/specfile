@@ -18,8 +18,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	parser.Parse()
-	for _, v := range parser.Spec.Macros {
-	  fmt.Printf("%s: %s\n", v.Name, v.Value)
+	err = parser.Parse()
+	if err != nil {
+		panic(err)
+	}
+	for _, v := range parser.Spec.Subpackages {
+		fmt.Println(v)
 	}
 }

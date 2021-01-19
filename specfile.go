@@ -1,6 +1,7 @@
 package specfile
 
 import (
+	"errors"
 	"reflect"
 )
 
@@ -11,6 +12,38 @@ type Specfile struct {
 	Macros       Macros
 	Sections     []Section
 	Dependencies []Dependency
+}
+
+// FindTag find a tag in specfile
+func (s Specfile) FindTag(name string) (Tag, error) {
+	for _, t := range s.Tags {
+		if t.Name == name {
+			return t, nil
+		}
+	}
+	return Tag{}, errors.New("tag not found")
+}
+
+// FindSection find a section in specfile
+func (s Specfile) FindSection(name string) (Section, error) {
+	for _, section := range s.Sections {
+		if section.Name == name {
+			return section, nil
+		}
+	}
+	return Section{}, errors.New("section not found")
+}
+
+// FindSubpackage find a subpackage in specfile
+func (s Specfile) FindSubpackage(name string) (Specfile, error) {
+	for _, spec := range s.Subpackages {
+		if tag, err := spec.FindTag("Name"); err == nil {
+			if tag.Value == name {
+				return spec, nil
+			}
+		}
+	}
+	return Specfile{}, errors.New("specfile not found")
 }
 
 // append append value to fields

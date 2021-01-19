@@ -2,7 +2,6 @@ package specfile
 
 import (
 	"io"
-	"strings"
 )
 
 // Parser the specfile parser
@@ -32,7 +31,10 @@ func (f *Parser) Parse() error {
 		case "Dependency":
 			ParseDependency(token, last, &(f.Spec))
 		case "Section":
-			ParseSection(token, last, &(f.Spec))
+			err := ParseSection(token, last, &(f.Spec))
+			if err != nil {
+				return err
+			}
 		case "Tag":
 			ParseTag(token, last, &(f.Spec))
 		}

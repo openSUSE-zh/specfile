@@ -115,6 +115,7 @@ func (m *Macro) Update(val string) {
 	m.Value = val
 }
 
+// ParseMacro parse a macro token into spec
 func ParseMacro(token, last Tokenizer, macros Macros, spec *Specfile) {
 	var m Macro
 	if last.Type == "Comment" {
@@ -177,7 +178,7 @@ func parseMacroFile(f io.ReaderAt) (Macros, error) {
 	var macros Macros
 	err := walkFile(f, false, func(rd io.ReaderAt, line *Line) (error, int64) {
 		// skip comment and empty line
-		if !strings.HasPrefix(line.Last, "#") && line.Lines[0] != "\n" && len(line.Lines[0]) != 0 {
+		if !strings.HasPrefix(line.Last, "#") && line.Len != 0 {
 			var m Macro
 			err1 := (&m).Parse(strings.Join(line.Lines, ""))
 			// not a macro

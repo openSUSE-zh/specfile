@@ -254,3 +254,13 @@ func TestExpandWithSingleExpand(t *testing.T) {
 		t.Error("[macro]expand macro with single expand test failed")
 	}
 }
+
+func TestParseMacro(t *testing.T) {
+	var spec Specfile
+	token := NewTokenizer("Macro", "%define build_ada 1")
+	last := NewTokenizer("Comment", "This is a comment.")
+	ParseMacro(token, last, Macros{}, &spec)
+	if len(spec.Macros) != 1 || spec.Macros[0].Name != "build_ada" || spec.Macros[0].Value != "1" || spec.Macros[0].Comment != last.Content {
+		t.Error("[macro]ParseMacro test failed")
+	}
+}

@@ -30,11 +30,12 @@ func NewTokenizers(rd io.ReaderAt) (tokenizers Tokenizers, err error) {
 		if line.isSection() {
 			for {
 				tmp := line.Offset
+				last := line.Last
 				err1 := readLine(reader, line, &c)
 				if err1 != nil && err1 != io.EOF {
 					return err1, tmp
 				}
-				if line.isSection() {
+				if line.isSection() && line.Last != last {
 					line.Lines = line.Lines[:line.Len-1]
 					line.Len--
 					line.Last = line.Lines[line.Len-1]
@@ -73,14 +74,15 @@ func NewTokenizers(rd io.ReaderAt) (tokenizers Tokenizers, err error) {
 			tokenizers = append(tokenizers, NewTokenizer("Tag", strings.Join(line.Lines, "")))
 			return nil, line.Offset
 		}
-
 		// empty line
 		if strings.Join(line.Lines, "\n") == "\n" {
 			tokenizers = append(tokenizers, NewTokenizer("Empty", "\n"))
 			return nil, line.Offset
 		}
 		// comment
-		tokenizers = append(tokenizers, NewTokenizer("Comment", strings.Join(line.Lines, "")))
+		if line.Len > 0 {
+			tokenizers = append(tokenizers, NewTokenizer("Comment", strings.Join(line.Lines, "")))
+		}
 
 		return nil, line.Offset
 	})

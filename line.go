@@ -80,6 +80,11 @@ func (line Line) isTag() bool {
 
 // Concat prepend or append lines of string to Line struct
 func (line *Line) Concat(prepend bool, lines ...string) {
+	// don't append empty bytes
+	if len(lines) == 1 && len(lines[0]) == 0 {
+		return
+	}
+
 	old := line.Lines
 	new := lines
 
