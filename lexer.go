@@ -35,6 +35,10 @@ func NewTokenizers(rd io.ReaderAt) (tokenizers Tokenizers, err error) {
 				if err1 != nil && err1 != io.EOF {
 					return err1, tmp
 				}
+				if line.Last == "\n" && last == "\n" {
+					// we allow two line-breaks here, or we think this section is done
+					break
+				}
 				if line.isSection() && line.Last != last {
 					line.Lines = line.Lines[:line.Len-1]
 					line.Len--

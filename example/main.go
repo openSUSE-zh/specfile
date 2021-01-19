@@ -22,6 +22,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	for _, v := range parser.Spec.Subpackages {
 		fmt.Println(v)
 	}
