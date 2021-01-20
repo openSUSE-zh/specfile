@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/openSUSE-zh/specfile"
@@ -21,9 +20,5 @@ func main() {
 	err = parser.Parse()
 	if err != nil {
 		panic(err)
-	}
-
-	for _, v := range parser.Spec.Subpackages {
-		fmt.Println(v)
 	}
 }

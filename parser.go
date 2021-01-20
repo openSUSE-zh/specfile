@@ -26,6 +26,7 @@ func (f *Parser) Parse() error {
 	for _, token := range f.Tokens {
 		switch token.Type {
 		case "Conditional":
+			ParseConditional(token, last, systemMacros, &(f.Spec))
 		case "Macro":
 			ParseMacro(token, last, systemMacros, &(f.Spec))
 		case "Dependency":
