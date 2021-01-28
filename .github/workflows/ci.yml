@@ -1,0 +1,24 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: opensuse/tumbleweed
+
+    steps:
+      - uses: actions/checkout@v1.2.0
+      - name: Update packages
+        run: |
+          zypper --non-interactive --gpg-auto-import-keys ref
+    
+      - name: Install dependencies
+        run: zypper --non-interactive --gpg-auto-import-keys install go
+      
+      - name: Test
+        run: |
+          go test -v ./...
+          go build example/main.go
+          ./main test/*

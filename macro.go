@@ -11,8 +11,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	dirutils "github.com/marguerite/util/dir"
-	"github.com/marguerite/util/slice"
+	dirutils "github.com/marguerite/go-stdlib/dir"
+	"github.com/marguerite/go-stdlib/slice"
 )
 
 var (
