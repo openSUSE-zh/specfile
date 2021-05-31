@@ -14,6 +14,17 @@ type Specfile struct {
 	Dependencies []Dependency
 }
 
+// FindDepedencies find a kind of dependency in specfile
+func (s Specfile) FindDependencies(typ string) []string {
+	var dependencies []string
+	for _, d := range s.Dependencies {
+		if d.Name == typ {
+			dependencies = append(dependencies, d.Value)
+		}
+	}
+	return dependencies
+}
+
 // FindTag find a tag in specfile
 func (s Specfile) FindTag(name string) (Tag, error) {
 	for _, t := range s.Tags {

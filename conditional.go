@@ -2,7 +2,6 @@ package specfile
 
 import (
 	"bufio"
-	"fmt"
 	"strings"
 )
 
@@ -18,7 +17,6 @@ func (conditional *Conditional) Parse(token *Tokenizer) {
 
 // ParseConditional parse conditional from token
 func ParseConditional(token, last Tokenizer, macros Macros, spec *Specfile) {
-	fmt.Println(0)
 	scanner := bufio.NewScanner(strings.NewReader(token.Content))
 	var conditions []string
 	var lastIf, secondlastIf, idx int
