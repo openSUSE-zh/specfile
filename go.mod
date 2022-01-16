@@ -1,3 +1,3 @@
-module github.com/openSUSE-zh/specfile
+module github.com/openSUSE/specfile
 
 go 1.12
