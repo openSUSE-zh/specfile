@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	"os"
 
 	specfile "github.com/openSUSE/specfile"
@@ -16,5 +16,5 @@ func main() {
 
 	lines := specfile.ReadLines(f)
 	nodes := specfile.NewLexer(lines)
-	fmt.Println(nodes)
+	specfile.NewParser(nodes)
 }

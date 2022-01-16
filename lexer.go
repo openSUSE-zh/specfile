@@ -54,15 +54,14 @@ func NewLexer(lines Lines) Nodes {
 					condition = append(condition, idx)
 					nodes = append(nodes, Node{idx, 0, []int{}, []int{}, &lines[k], lines[k].buf[:i], bytes.TrimLeft(lines[k].buf[i+1:lines[k].len-1], " ")})
 				} else {
-					c := make([]int, len(condition))
-					copy(c, condition)
-					nodes = append(nodes, Node{idx, 0, []int{}, c, &lines[k], lines[k].buf[:i], bytes.TrimLeft(lines[k].buf[i+1:lines[k].len-1], " ")})
+					nodes = append(nodes, Node{idx, 0, []int{}, dup(condition), &lines[k], lines[k].buf[:i], bytes.TrimLeft(lines[k].buf[i+1:lines[k].len-1], " ")})
 				}
 			} else {
 				switch lines[k].typ {
 				case 6:
 					// the else case
 					condition = append(condition, idx)
+					nodes = append(nodes, Node{idx, 0, []int{}, []int{}, &lines[k], lines[k].buf[:lines[k].len-1], []byte{}})
 				case 10:
 					// the endif case
 					// reverse delete
@@ -72,8 +71,10 @@ func NewLexer(lines Lines) Nodes {
 							break
 						}
 					}
+					nodes = append(nodes, Node{idx, 0, []int{}, []int{}, &lines[k], lines[k].buf[:lines[k].len-1], []byte{}})
+				default:
+					nodes = append(nodes, Node{idx, 0, []int{}, []int{}, &lines[k], []byte{}, lines[k].buf[:lines[k].len-1]})
 				}
-				nodes = append(nodes, Node{idx, 0, []int{}, []int{}, &lines[k], []byte{}, lines[k].buf[:lines[k].len-1]})
 			}
 			idx++
 			continue
@@ -82,17 +83,19 @@ func NewLexer(lines Lines) Nodes {
 		if lines[k].buf[0] >= 'A' {
 			i := bytes.IndexByte(lines[k].buf, ':')
 			if i >= 0 {
-				c := make([]int, len(condition))
-				copy(c, condition)
-				nodes = append(nodes, Node{idx, 0, []int{}, c, &lines[k], lines[k].buf[:i], bytes.TrimLeft(lines[k].buf[i+1:lines[k].len-1], " ")})
+				nodes = append(nodes, Node{idx, 0, []int{}, dup(condition), &lines[k], lines[k].buf[:i], bytes.TrimLeft(lines[k].buf[i+1:lines[k].len-1], " ")})
 				idx++
 				continue
 			}
 		}
-		c := make([]int, len(condition))
-		copy(c, condition)
-		nodes = append(nodes, Node{idx, 0, []int{}, c, &lines[k], []byte{}, lines[k].buf[:lines[k].len-1]})
+		nodes = append(nodes, Node{idx, 0, []int{}, dup(condition), &lines[k], []byte{}, lines[k].buf[:lines[k].len-1]})
 		idx++
 	}
 	return nodes
+}
+
+func dup(b []int) (b1 []int) {
+	b1 = make([]int, len(b))
+	copy(b1, b)
+	return b1
 }
