@@ -2,6 +2,7 @@ package main
 
 import (
 	//"fmt"
+
 	"os"
 
 	specfile "github.com/openSUSE/specfile"
